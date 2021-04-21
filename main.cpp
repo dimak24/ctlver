@@ -1,6 +1,9 @@
 #include <iostream>
 #include <functional>
 
+#include "list.h"
+#include "dict.h"
+
 template <int ID_>
 struct Node {
     constexpr const static int ID = ID_;
@@ -11,74 +14,6 @@ struct Edge {
     using Source = S;
     using Target = T;
 };
-
-template <typename...>
-struct List {};
-
-template <typename H, typename... Ts>
-struct List<H, Ts...> {
-    using Head = H;
-    using Tail = List<Ts...>;
-};
-
-template <typename, typename>
-struct ListContains {
-    constexpr const static bool value = false;
-};
-
-template <typename... Elements, typename Item>
-struct ListContains<List<Elements...>, Item> {
-    constexpr const static bool value = (false || ... || std::is_same_v<Elements, Item>);
-};
-
-template <typename L, typename>
-struct ListPushFront {
-    using type = L;
-};
-
-template <typename Item, typename... Elements>
-struct ListPushFront<List<Elements...>, Item> {
-    using type = List<Item, Elements...>;
-};
-
-template <typename Lhs, typename>
-struct ListMinus {
-    using type = Lhs;
-};
-
-template <typename Head, typename... Tail, typename Rhs>
-struct ListMinus<List<Head, Tail...>, Rhs> {
-    using type = std::conditional_t<
-        ListContains<Rhs, Head>::value,
-        typename ListMinus<List<Tail...>, Rhs>::type,
-        typename ListPushFront<typename ListMinus<List<Tail...>, Rhs>::type, Head>::type
-    >;
-};
-
-template <typename K, typename V>
-struct MapItem {
-    using Key = K;
-    using Value = V;
-};
-
-template <typename Default, typename...>
-struct DefaultDict {
-    template <typename>
-    using get = Default;
-};
-
-template <typename Default, typename Key, typename Value, typename... Items>
-struct DefaultDict<Default, MapItem<Key, Value>, Items...> {
-    template <typename Key_>
-    using get = std::conditional_t<
-        std::is_same_v<Key, Key_>,
-        Value,
-        typename DefaultDict<Default, Items...>::template get<Key_>
-    >;
-};
-
-template <typename... Items>
-using Dict = DefaultDict<void, Items...>;
 
 template <typename... Items>
 using AdjList = DefaultDict<List<>, Items...>;
@@ -231,63 +166,35 @@ struct CTLCheck {
     using Satisfy = typename Model::States;
 };
 
-template <typename L, template <typename> class Selector>
-struct ListSelect {
-    using type = List<>;
-};
-
-template <typename Head, typename... Tail, template <typename> class Selector>
-struct ListSelect<List<Head, Tail...>, Selector> {
-    using T = typename ListSelect<List<Tail...>, Selector>::type;
-    using type = std::conditional_t<
-        Selector<Head>::value,
-        typename ListPushFront<T, Head>::type,
-        T
-    >;
-};
 
 template <typename Model, typename Name>
 struct CTLCheck<Model, Prop<Name>> {
     template <typename Item>
     struct Selector {
         using L = typename Model::Labels::template get<Item>;
-        constexpr const static bool value = ListContains<L, Prop<Name>>::value;
+        constexpr const static bool value = L::template contains<Prop<Name>>;
     };
-    using Satisfy = typename ListSelect<typename Model::States, Selector>::type;
-};
-
-template <typename Lhs, typename>
-struct ListUnite {
-    using type = Lhs;
-};
-
-template <typename Lhs, typename Head, typename... Tail>
-struct ListUnite<Lhs, List<Head, Tail...>> {
-    using L = typename ListUnite<Lhs, List<Tail...>>::type;
-    using type = std::conditional_t<
-        ListContains<Lhs, Head>::value,
-        L,
-        typename ListPushFront<L, Head>::type>;
+    using Satisfy = typename Model::States::template select<Selector>;
 };
 
 template <typename Model, typename Lhs, typename Rhs>
 struct CTLCheck<Model, Or<Lhs, Rhs>> {
     using SatisfyLhs = typename CTLCheck<Model, Lhs>::Satisfy;
     using SatisfyRhs = typename CTLCheck<Model, Rhs>::Satisfy;
-    using Satisfy = typename ListUnite<SatisfyLhs, SatisfyRhs>::type;
+    using Satisfy = typename SatisfyLhs::template unite<SatisfyRhs>;
 };
 
 template <typename Model, typename F>
 struct CTLCheck<Model, Not<F>> {
-    using Satisfy = typename ListMinus<typename Model::States, typename CTLCheck<Model, F>::Satisfy>::type;
+    using Satisfy = typename Model::States::template setminus<typename CTLCheck<Model, F>::Satisfy>;
 };
 
 
 int main() {
     using my_list = List<Node<1>, Node<2>>;
     using my_dict = Dict<
-        MapItem<Node<1>, List<>>,
-        MapItem<Node<2>, my_list>
+        KV<Node<1>, List<>>,
+        KV<Node<2>, my_list>
     >;
 
     using p = decltype("p"_prop);
@@ -299,15 +206,17 @@ int main() {
         List<Node<1>, Node<2>, Node<3>>,
         List<Node<1>>,
         AdjList<
-            MapItem<Node<1>, List<Node<2>, Node<3>>>,
-            MapItem<Node<3>, List<Node<2>>>
+            KV<Node<1>, List<Node<2>, Node<3>>>,
+            KV<Node<3>, List<Node<2>>>
         >,
         DefaultDict<List<>,
-            MapItem<Node<1>, List<p, q>>,
-            MapItem<Node<2>, List<r>>
+            KV<Node<1>, List<p, q>>,
+            KV<Node<2>, List<r>>
         >
     >;
 
+    std::cout << my_dict::template contains<Node<3>> << std::endl;
+
     using result = typename CTLCheck<model, Or<q, Not<r>>>::Satisfy;
-    ShowType<result> _;
+    //ShowType<result> _;
 }

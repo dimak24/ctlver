@@ -3,20 +3,7 @@
 
 #include "list.h"
 #include "dict.h"
-
-template <int ID_>
-struct Node {
-    constexpr const static int ID = ID_;
-};
-
-template <typename S, typename T>
-struct Edge {
-    using Source = S;
-    using Target = T;
-};
-
-template <typename... Items>
-using AdjList = DefaultDict<List<>, Items...>;
+#include "graph.h"
 
 template <typename CharT, CharT... chars>
 struct get_name {
@@ -170,23 +157,27 @@ struct CTLCheck {
 template <typename Model, typename Name>
 struct CTLCheck<Model, Prop<Name>> {
     template <typename Item>
-    struct Selector {
-        using L = typename Model::Labels::template get<Item>;
-        constexpr const static bool value = L::template contains<Prop<Name>>;
+    struct Selector_ {
+        using L = Get<typename Model::Labels, Item>;
+        constexpr const static bool value = Contains<L, Prop<Name>>;
     };
-    using Satisfy = typename Model::States::template select<Selector>;
+    using Satisfy = Select<typename Model::States, Selector_>;
 };
 
 template <typename Model, typename Lhs, typename Rhs>
 struct CTLCheck<Model, Or<Lhs, Rhs>> {
-    using SatisfyLhs = typename CTLCheck<Model, Lhs>::Satisfy;
-    using SatisfyRhs = typename CTLCheck<Model, Rhs>::Satisfy;
-    using Satisfy = typename SatisfyLhs::template unite<SatisfyRhs>;
+    using Satisfy = Unite<
+        typename CTLCheck<Model, Lhs>::Satisfy,
+        typename CTLCheck<Model, Rhs>::Satisfy
+    >;
 };
 
 template <typename Model, typename F>
 struct CTLCheck<Model, Not<F>> {
-    using Satisfy = typename Model::States::template setminus<typename CTLCheck<Model, F>::Satisfy>;
+    using Satisfy = SetMinus<
+        typename Model::States,
+        typename CTLCheck<Model, F>::Satisfy
+    >;
 };
 
 
@@ -215,7 +206,18 @@ int main() {
         >
     >;
 
-    std::cout << my_dict::template contains<Node<3>> << std::endl;
+    using graph = Graph<
+        List<Node<1>, Node<2>, Node<3>>,
+        List<
+            Edge<Node<1>, Node<2>>,
+            Edge<Node<1>, Node<3>>,
+            Edge<Node<2>, Node<3>>
+        >
+    >;
+    //ShowType<Update<Dict<KV<float, float>>, int, int>> _;
+    ShowType<typename graph::AdjList> _;
+
+    std::cout << Contains<my_dict, Node<3>> << std::endl;
 
     using result = typename CTLCheck<model, Or<q, Not<r>>>::Satisfy;
     //ShowType<result> _;

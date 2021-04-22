@@ -1,59 +1,75 @@
 template <typename...>
-struct List;
+struct List {};
 
-namespace detail {
+namespace impl {
 
-template <typename L, template <typename> class Selector>
-struct ListSelect {
+template <typename, typename> struct Contains;
+
+template <typename T, typename... Ts>
+struct Contains<List<Ts...>, T>
+    : std::integral_constant<bool, (false || ... || std::is_same_v<Ts, T>)> {};
+
+template <typename, typename> struct Add;
+
+template <typename T, typename... Ts>
+struct Add<List<Ts...>, T> {
+    using type = std::conditional_t<
+        Contains<List<Ts...>, T>::value,
+        List<Ts...>,
+        List<Ts..., T>
+    >;
+};
+
+template <typename, template <typename> class>
+struct Select {
     using type = List<>;
 };
 
 template <typename Head, typename... Tail, template <typename> class Selector>
-struct ListSelect<List<Head, Tail...>, Selector> {
-    using T = typename ListSelect<List<Tail...>, Selector>::type;
+struct Select<List<Head, Tail...>, Selector> {
+    using T = typename Select<List<Tail...>, Selector>::type;
     using type = std::conditional_t<
         Selector<Head>::value,
-        typename T::template add<Head>,
+        typename Add<T, Head>::type,
         T
     >;
 };
 
 template <typename Lhs, typename Rhs>
-struct ListMinus {
+struct SetMinus {
     template <typename T>
-    struct Selector_ : std::integral_constant<bool, !Rhs::template contains<T>> {};
+    struct Selector_
+        : std::integral_constant<bool, !Contains<Rhs, T>::value> {};
 
-    using type = typename Lhs::template select<Selector_>;
+    using type = Select<Lhs, Selector_>;
 };
 
 template <typename Lhs, typename>
-struct ListUnite {
+struct Unite {
     using type = Lhs;
 };
 
 template <typename Lhs, typename Head, typename... Tail>
-struct ListUnite<Lhs, List<Head, Tail...>> {
-    using U = typename ListUnite<Lhs, List<Tail...>>::type;
-    using type = typename U::template add<Head>;
+struct Unite<Lhs, List<Head, Tail...>> {
+    using U = typename Unite<Lhs, List<Tail...>>::type;
+    using type = typename Add<U, Head>::type;
 };
 
 }
 
-template <typename... Ts>
-struct List {
-    template <typename T>
-    constexpr const static bool contains = (false || ... || std::is_same_v<Ts, T>);
+template <typename L, template <typename> class Selector>
+using Select = typename impl::Select<L, Selector>::type;
 
-    template <typename T>
-    using add = std::conditional_t<contains<T>, List<Ts...>, List<T, Ts...>>;
+template <typename L, typename T>
+constexpr static inline bool Contains = impl::Contains<L, T>::value;
 
-    template <typename Rhs>
-    using unite = typename detail::ListUnite<List<Ts...>, Rhs>::type;
+template <typename L, typename T>
+using Add = typename impl::Add<L, T>::type;
 
-    template <template <typename> class Selector>
-    using select = typename detail::ListSelect<List<Ts...>, Selector>::type;
+template <typename Lhs, typename Rhs>
+using SetMinus = typename impl::SetMinus<Lhs, Rhs>::type;
 
-    template <typename Rhs>
-    using setminus = typename detail::ListMinus<List<Ts...>, Rhs>::type;
-};
+template <typename Lhs, typename Rhs>
+using Unite = typename impl::Unite<Lhs, Rhs>::type;
+
 

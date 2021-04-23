@@ -204,6 +204,39 @@ struct CTLCheck<Model, EX<F>> {
             typename Model::Relation>::type, Selector_>>::type;
 };
 
+template <typename>
+struct ReverseAll_;
+
+template <typename... Edges>
+struct ReverseAll_<List<Edges...>> {
+    using type = List<Edge<typename Edges::Target, typename Edges::Source>...>;
+};
+
+template <typename Model, typename A, typename B>
+struct CTLCheck<Model, EU<A, B>> {
+    using SatisfyA_ = typename CTLCheck<Model, A>::Satisfy;
+    using SatisfyB_ = typename CTLCheck<Model, B>::Satisfy;
+    using SatisfyAB_ = Unite<SatisfyA_, SatisfyB_>;
+
+    template <typename Edge>
+    struct Selector_
+        : std::integral_constant<bool,
+            Contains<SatisfyA_, typename Edge::Source>> {};
+
+    using Graph_ = Graph<
+        SatisfyAB_,
+        typename ReverseAll_<
+            Select<typename Model::Relation, Selector_>>::type>;
+
+    using Satisfy = Reachable<Graph_, SatisfyB_>;
+};
+
+template <typename Model, typename F>
+struct CTLCheck<Model, EG<F>> {
+    using SatisfyF_ = typename CTLCheck<Model, F>::Satisfy;
+
+};
+
 
 int main() {
     using my_list = List<Node<1>, Node<2>>;
@@ -216,7 +249,6 @@ int main() {
     using q = decltype("q"_prop);
     using r = decltype("r"_prop);
 
-    using formula = EX<r>;
     using model = KripkeModel<
         List<Node<1>, Node<2>, Node<3>>,
         List<Node<1>>,
@@ -249,14 +281,15 @@ int main() {
         >
     >;
 
-    using reachable = typename impl::Reachable<graph, List<Node<4>>>::type;
-    ShowType<reachable> _;
+    using reachable = Reachable<graph, List<Node<4>>>;
+    // ShowType<reachable> _;
 
-    //ShowType<Update<Dict<KV<float, float>>, int, int>> _;
+    // ShowType<Update<Dict<KV<float, float>>, int, int>> _;
     // ShowType<typename Graph<List<Node<1>, Node<2>, Node<3>>, typename graph::Adj>::Edges> _;
 
     std::cout << Contains<my_dict, Node<3>> << std::endl;
 
+    using formula = EU<EX<r>, p>;
     using result = typename CTLCheck<model, formula>::Satisfy;
     ShowType<result> _;
 }

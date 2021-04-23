@@ -82,7 +82,7 @@ template <typename G, typename Node, typename Visited>
 struct Reachable<G, List<Node>, Visited, std::enable_if_t<!Contains<Visited, Node>::value>> {
     using Next_ = typename Get<typename G::Adj, Node>::type;
     using VisitedWithNode_ = typename Add<Visited, Node>::type;
-    using type = 
+    using type =
         typename Add<typename Reachable<G, Next_, VisitedWithNode_>::type, Node>::type;
 };
 
@@ -94,3 +94,7 @@ struct Reachable<G, List<Node, Tail...>, Visited, std::enable_if_t<(sizeof...(Ta
 };
 
 }
+
+template <typename G, typename Nodes>
+using Reachable = typename impl::Reachable<G, Nodes>::type;
+

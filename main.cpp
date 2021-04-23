@@ -235,6 +235,29 @@ template <typename Model, typename F>
 struct CTLCheck<Model, EG<F>> {
     using SatisfyF_ = typename CTLCheck<Model, F>::Satisfy;
 
+    template <typename Edge>
+    struct Selector_
+        : std::integral_constant<bool,
+            Contains<SatisfyF_, typename Edge::Source>
+            && Contains<SatisfyF_, typename Edge::Target>> {};
+
+    using Graph_ = Graph<
+        SatisfyF_,
+        typename ReverseAll_<
+            Select<typename Model::Relation, Selector_>>::type>;
+
+    template <typename SCC>
+    struct SCCSelector_
+        : std::integral_constant<bool,
+            (Len<SCC> > 1)
+            || Contains<
+                Get<
+                    typename impl::MakeAdjList<typename Model::Relation>::type,
+                    typename SCC::Head
+                >, typename SCC::Head>> {};
+
+    using SCCs_ = Select<SCCKosaraju<Graph_>, SCCSelector_>;
+    using Satisfy = Reachable<Graph_, Chain<SCCs_>>;
 };
 
 

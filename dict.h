@@ -72,7 +72,7 @@ struct Update<DefaultDict<Default, KV<Key, Value>, Items...>, K, V> {
     >;
 };
 
-}
+} // namespace impl
 
 template <typename D, typename K>
 using Get = typename impl::Get<D, K>::type;

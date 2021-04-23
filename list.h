@@ -1,5 +1,14 @@
 template <typename...>
-struct List {};
+struct List {
+    using Head = void;
+    using Tail = List<>;
+};
+
+template <typename H, typename... Ts>
+struct List<H, Ts...> {
+    using Head = H;
+    using Tail = List<Ts...>;
+};
 
 namespace impl {
 
@@ -9,8 +18,11 @@ template <typename T, typename... Ts>
 struct Contains<List<Ts...>, T>
     : std::integral_constant<bool, (false || ... || std::is_same_v<Ts, T>)> {};
 
-template <typename, typename> struct Add;
+template <typename> struct Len;
+template <typename... Ts>
+struct Len<List<Ts...>> : std::integral_constant<size_t, sizeof...(Ts)> {};
 
+template <typename, typename> struct Add;
 template <typename T, typename... Ts>
 struct Add<List<Ts...>, T> {
     using type = std::conditional_t<
@@ -68,13 +80,20 @@ template <typename L1, typename L2, typename... Tail>
 struct Unite<L1, L2, Tail...>
     : Unite<typename Unite<L1, L2>::type, Tail...> {};
 
-}
+template <typename> struct Chain;
+template <typename... Ts>
+struct Chain<List<Ts...>> : Unite<Ts...> {};
+
+} // namespace impl
 
 template <typename L, template <typename> class Selector>
 using Select = typename impl::Select<L, Selector>::type;
 
 template <typename L, typename T>
 constexpr static inline bool Contains = impl::Contains<L, T>::value;
+
+template <typename L>
+constexpr const static inline bool Len = impl::Len<L>::value;
 
 template <typename L, typename T>
 using Add = typename impl::Add<L, T>::type;
@@ -84,5 +103,8 @@ using SetMinus = typename impl::SetMinus<Lhs, Rhs>::type;
 
 template <typename Lhs, typename Rhs>
 using Unite = typename impl::Unite<Lhs, Rhs>::type;
+
+template <typename L>
+using Chain = typename impl::Chain<L>::type;
 
 

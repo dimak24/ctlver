@@ -44,7 +44,7 @@ struct MakeEdgeList<AdjList<Head, Tail...>> {
         typename MakeEdgeList<AdjList<Tail...>>::type>::type;
 };
 
-}
+} // namespace impl
 
 template <typename, typename>
 struct Graph;
@@ -93,8 +93,12 @@ struct Reachable<G, List<Node, Tail...>, Visited, std::enable_if_t<(sizeof...(Ta
     using type = typename Unite<Reachable_, typename Reachable<G, List<Tail...>, Visited_>::type>::type;
 };
 
-}
+template <typename> struct SCCKosaraju;
+
+} // namespace impl
 
 template <typename G, typename Nodes>
 using Reachable = typename impl::Reachable<G, Nodes>::type;
 
+template <typename G>
+using SCCKosaraju = List<>;

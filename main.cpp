@@ -59,9 +59,11 @@ struct EG {
     using Arg = F;
 };
 
-template <typename F>
+// E (L U R)
+template <typename L, typename R>
 struct EU {
-    using Arg = F;
+    using Lhs = L;
+    using Rhs = R;
 };
 
 template <typename F>
@@ -133,10 +135,10 @@ struct CTLParser<char, 'E', 'X', chars...> {
     using type = EX<typename CTL<decltype(remove_braces<chars...>())>::type>;
 };
 
-template <char... chars>
-struct CTLParser<char, 'E', 'U', chars...> {
-    using type = EU<typename CTL<decltype(remove_braces<chars...>())>::type>;
-};
+// template <char... chars>
+// struct CTLParser<char, 'E', 'U', chars...> {
+//     using type = EU<typename CTL<decltype(remove_braces<chars...>())>::type>;
+// };
 
 template <typename CharT, CharT... chars>
 struct CTL<std::integer_sequence<CharT, chars...>> {
@@ -180,6 +182,28 @@ struct CTLCheck<Model, Not<F>> {
     >;
 };
 
+template <typename>
+struct Sources_;
+
+template <typename... Edges>
+struct Sources_<List<Edges...>> {
+    using type = List<typename Edges::Source...>;
+};
+
+
+template <typename Model, typename F>
+struct CTLCheck<Model, EX<F>> {
+    using FSatisfy_ = typename CTLCheck<Model, F>::Satisfy;
+
+    template <typename Edge>
+    struct Selector_ : std::integral_constant<
+        bool, Contains<FSatisfy_, typename Edge::Target>> {};
+
+    using Satisfy = typename Sources_<Select<
+        typename impl::MakeEdgeList<
+            typename Model::Relation>::type, Selector_>>::type;
+};
+
 
 int main() {
     using my_list = List<Node<1>, Node<2>>;
@@ -192,7 +216,7 @@ int main() {
     using q = decltype("q"_prop);
     using r = decltype("r"_prop);
 
-    using formula = EX<Or<EG<Or<p, Not<q>>>, r>>;
+    using formula = EX<r>;
     using model = KripkeModel<
         List<Node<1>, Node<2>, Node<3>>,
         List<Node<1>>,
@@ -206,19 +230,33 @@ int main() {
         >
     >;
 
+    /**
+     *      1 ---> 2
+     *      |  ----^
+     *      v /
+     *      3 <--> 4
+     */
+
+
     using graph = Graph<
-        List<Node<1>, Node<2>, Node<3>>,
+        List<Node<1>, Node<2>, Node<3>, Node<4>>,
         List<
             Edge<Node<1>, Node<2>>,
             Edge<Node<1>, Node<3>>,
-            Edge<Node<2>, Node<3>>
+            Edge<Node<3>, Node<2>>,
+            Edge<Node<3>, Node<4>>,
+            Edge<Node<4>, Node<3>>
         >
     >;
+
+    using reachable = typename impl::Reachable<graph, List<Node<4>>>::type;
+    ShowType<reachable> _;
+
     //ShowType<Update<Dict<KV<float, float>>, int, int>> _;
-    ShowType<typename graph::AdjList> _;
+    // ShowType<typename Graph<List<Node<1>, Node<2>, Node<3>>, typename graph::Adj>::Edges> _;
 
     std::cout << Contains<my_dict, Node<3>> << std::endl;
 
-    using result = typename CTLCheck<model, Or<q, Not<r>>>::Satisfy;
-    //ShowType<result> _;
+    using result = typename CTLCheck<model, formula>::Satisfy;
+    ShowType<result> _;
 }

@@ -44,16 +44,29 @@ struct SetMinus {
     using type = Select<Lhs, Selector_>;
 };
 
-template <typename Lhs, typename>
-struct Unite {
-    using type = Lhs;
+template <typename...> struct Unite;
+
+template <> struct Unite<> {
+    using type = List<>;
 };
+
+template <typename Head>
+struct Unite<Head> {
+    using type = Head;
+};
+
+template <typename Head>
+struct Unite<Head, List<>> : Unite<Head> {};
 
 template <typename Lhs, typename Head, typename... Tail>
 struct Unite<Lhs, List<Head, Tail...>> {
     using U = typename Unite<Lhs, List<Tail...>>::type;
     using type = typename Add<U, Head>::type;
 };
+
+template <typename L1, typename L2, typename... Tail>
+struct Unite<L1, L2, Tail...>
+    : Unite<typename Unite<L1, L2>::type, Tail...> {};
 
 }
 

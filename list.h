@@ -53,7 +53,7 @@ struct SetMinus {
     struct Selector_
         : std::integral_constant<bool, !Contains<Rhs, T>::value> {};
 
-    using type = Select<Lhs, Selector_>;
+    using type = typename Select<Lhs, Selector_>::type;
 };
 
 template <typename...> struct Unite;
@@ -83,6 +83,15 @@ struct Unite<L1, L2, Tail...>
 template <typename> struct Chain;
 template <typename... Ts>
 struct Chain<List<Ts...>> : Unite<Ts...> {};
+
+template <typename> struct Reverse {
+    using type = List<>;
+};
+
+template <typename Head, typename... Tail>
+struct Reverse<List<Head, Tail...>> {
+    using type = typename Add<typename Reverse<List<Tail...>>::type, Head>::type;
+};
 
 } // namespace impl
 

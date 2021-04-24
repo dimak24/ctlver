@@ -204,14 +204,6 @@ struct CTLCheck<Model, EX<F>> {
             typename Model::Relation>::type, Selector_>>::type;
 };
 
-template <typename>
-struct ReverseAll_;
-
-template <typename... Edges>
-struct ReverseAll_<List<Edges...>> {
-    using type = List<Edge<typename Edges::Target, typename Edges::Source>...>;
-};
-
 template <typename Model, typename A, typename B>
 struct CTLCheck<Model, EU<A, B>> {
     using SatisfyA_ = typename CTLCheck<Model, A>::Satisfy;
@@ -286,33 +278,40 @@ int main() {
     >;
 
     /**
-     *      1 ---> 2
-     *      |  ----^
-     *      v /
-     *      3 <--> 4
+     *      1 ---> 2     6
+     *      ^  ----^ ----^
+     *      v /     /
+     *      3 <--> 4 --> 5
      */
 
 
     using graph = Graph<
-        List<Node<1>, Node<2>, Node<3>, Node<4>>,
+        List<Node<1>, Node<2>, Node<3>, Node<4>, Node<5>, Node<6>>,
         List<
             Edge<Node<1>, Node<2>>,
             Edge<Node<1>, Node<3>>,
+            Edge<Node<3>, Node<1>>,
             Edge<Node<3>, Node<2>>,
             Edge<Node<3>, Node<4>>,
-            Edge<Node<4>, Node<3>>
+            Edge<Node<4>, Node<3>>,
+            Edge<Node<4>, Node<5>>,
+            Edge<Node<4>, Node<6>>
         >
     >;
 
     using reachable = Reachable<graph, List<Node<4>>>;
+    using dfs_order = DFS<graph, Node<1>>;
+    using SCCs = SCCKosaraju<graph>;
     // ShowType<reachable> _;
+    // ShowType<SCCs> _;
 
     // ShowType<Update<Dict<KV<float, float>>, int, int>> _;
     // ShowType<typename Graph<List<Node<1>, Node<2>, Node<3>>, typename graph::Adj>::Edges> _;
 
     std::cout << Contains<my_dict, Node<3>> << std::endl;
 
-    using formula = EU<EX<r>, p>;
+    using formula = EU<EG<r>, p>;
     using result = typename CTLCheck<model, formula>::Satisfy;
     ShowType<result> _;
 }
+

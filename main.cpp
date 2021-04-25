@@ -42,9 +42,13 @@ int main() {
                 KV<Node<4>, List<Start, Close, Error>>,
                 KV<Node<5>, List<Start, Close>>,
                 KV<Node<6>, List<Start, Close, Heat>>>>;
-        using formula = Not<EU<True<>, Or<Not<Start>, Not<EG<Not<Heat>>>>>>;
+        using formula = AG<Implies<Start, AF<Heat>>>;
 
-        static_assert(std::is_same_v<List<>, typename CTLCheck<model, formula>::Satisfy>);
+
+        //using formula = Not<EU<True, Or<Not<Start>, Not<EG<Not<Heat>>>>>>;
+        // ShowType<typename impl_::CTLNormalize<formula>::F> _;
+
+        // static_assert(std::is_same_v<List<>, typename CTLCheck<model, formula>::Satisfy>);
     }
 
     {
@@ -66,7 +70,7 @@ int main() {
                 KV<Node<2>, List<p>>,
                 KV<Node<3>, List<q>>>>;
 
-        using formula = EG<Not<Or<Not<Or<Not<p>, q>>, Not<EU<True<>, Not<Or<Not<q>, p>>>>>>>;
+        using formula = EG<And<Or<Not<p>, q>, EF<And<q, Not<p>>>>>;
 
         static_assert(
             std::is_same_v<

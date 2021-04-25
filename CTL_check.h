@@ -1,12 +1,94 @@
 #include "CTL.h"
 
+namespace impl_ {
+
+template <typename, typename = void>
+struct CTLNormalize;
+
+template <typename Name>
+struct CTLNormalize<Prop<Name>> {
+    using F = Prop<Name>;
+};
+
+template <>
+struct CTLNormalize<True> {
+    using F = True;
+};
+
+template <template <typename, typename> class Allowed, typename L, typename R>
+struct CTLNormalize<
+        Allowed<L, R>,
+        std::enable_if_t<
+            std::is_same_v<Allowed<L, R>, Or<L, R>>
+            || std::is_same_v<Allowed<L, R>, EU<L, R>>>> {
+    using L_ = typename CTLNormalize<L>::F;
+    using R_ = typename CTLNormalize<R>::F;
+    using F = Allowed<L_, R_>;
+};
+
+template <template <typename> class Allowed, typename F_>
+struct CTLNormalize<
+        Allowed<F_>,
+        std::enable_if_t<
+            std::is_same_v<Allowed<F_>, Not<F_>>
+            || std::is_same_v<Allowed<F_>, EX<F_>>
+            || std::is_same_v<Allowed<F_>, EG<F_>>>> {
+    using F = Allowed<typename CTLNormalize<F_>::F>;
+};
+
+template <>
+struct CTLNormalize<False> {
+    using F = Not<True>;
+};
+
+template <typename L, typename R>
+struct CTLNormalize<And<L, R>> {
+    using F = Not<Or<
+        Not<typename CTLNormalize<L>::F>,
+        Not<typename CTLNormalize<R>::F>>>;
+};
+
+template <typename L, typename R>
+struct CTLNormalize<Implies<L, R>> {
+    using F = Or<
+        Not<typename CTLNormalize<L>::F>,
+        typename CTLNormalize<R>::F>;
+};
+
+template <typename F_>
+struct CTLNormalize<AX<F_>> {
+    using F = Not<EX<Not<typename CTLNormalize<F_>::F>>>;
+};
+
+template <typename F_>
+struct CTLNormalize<EF<F_>> {
+    using F = EU<True, typename CTLNormalize<F_>::F>;
+};
+
+template <typename F_>
+struct CTLNormalize<AG<F_>> {
+    using F = Not<EU<True, Not<typename CTLNormalize<F_>::F>>>;
+};
+
+template <typename F_>
+struct CTLNormalize<AF<F_>> {
+    using F = Not<EG<Not<typename CTLNormalize<F_>::F>>>;
+};
+
+template <typename L, typename R>
+struct CTLNormalize<AU<L, R>> {
+    using L_ = typename CTLNormalize<L>::F;
+    using R_ = typename CTLNormalize<R>::F;
+    using F = Not<Or<EU<Not<R_>, Not<Or<L_, R_>>>, EG<Not<R_>>>>;
+};
+
 template <typename Model, typename CTLFormula>
 struct CTLCheck {
     using Satisfy = typename Model::States;
 };
 
 template <typename Model>
-struct CTLCheck<Model, True<>> {
+struct CTLCheck<Model, True> {
     using Satisfy = typename Model::States;
 };
 
@@ -44,7 +126,6 @@ template <typename... Edges>
 struct Sources_<List<Edges...>> {
     using type = List<typename Edges::Source...>;
 };
-
 
 template <typename Model, typename F>
 struct CTLCheck<Model, EX<F>> {
@@ -107,3 +188,7 @@ struct CTLCheck<Model, EG<F>> {
     using Satisfy = Reachable<Graph_, Chain<SCCs_>>;
 };
 
+} // namespace impl_
+
+template <typename Model, typename Formula>
+using CTLCheck = impl_::CTLCheck<Model, typename impl_::CTLNormalize<Formula>::F>;

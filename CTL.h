@@ -1,18 +1,11 @@
 #include "logic.h"
 
-template <typename F>
-struct EG {
-    using Arg = F;
-};
+template <typename F> struct AX : detail::UnaryOp<F> {};
+template <typename F> struct EX : detail::UnaryOp<F> {};
+template <typename F> struct AF : detail::UnaryOp<F> {};
+template <typename F> struct EF : detail::UnaryOp<F> {};
+template <typename F> struct AG : detail::UnaryOp<F> {};
+template <typename F> struct EG : detail::UnaryOp<F> {};
 
-// E (L U R)
-template <typename L, typename R>
-struct EU {
-    using Lhs = L;
-    using Rhs = R;
-};
-
-template <typename F>
-struct EX {
-    using Arg = F;
-};
+template <typename L, typename R> struct AU : detail::BinaryOp<L, R> {};
+template <typename L, typename R> struct EU : detail::BinaryOp<L, R> {};

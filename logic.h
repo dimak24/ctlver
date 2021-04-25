@@ -20,16 +20,24 @@ Prop<std::integer_sequence<CharT, name...>> operator""_prop() {
     return {};
 }
 
-template <typename L, typename R>
-struct Or {
-    using Lhs = L;
-    using Rhs = R;
-};
+namespace detail {
+    template <typename L, typename R>
+    struct BinaryOp {
+        using Lhs = L;
+        using Rhs = R;
+    };
 
-template <typename...>
+    template <typename F>
+    struct UnaryOp {
+        using Arg = F;
+    };
+}
+
 struct True {};
+struct False {};
 
-template <typename F>
-struct Not {
-    using Arg = F;
-};
+template <typename F> struct Not : detail::UnaryOp<F> {};
+
+template <typename L, typename R> struct Or : detail::BinaryOp<L, R> {};
+template <typename L, typename R> struct And : detail::BinaryOp<L, R> {};
+template <typename L, typename R> struct Implies : detail::BinaryOp<L, R> {};

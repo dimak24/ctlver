@@ -32,6 +32,12 @@ struct Add<List<Ts...>, T> {
     >;
 };
 
+template <typename, typename> struct PushFront;
+template <typename T, typename... Ts>
+struct PushFront<List<Ts...>, T> {
+    using type = List<T, Ts...>;
+};
+
 template <typename, template <typename> class>
 struct Select {
     using type = List<>;
@@ -105,6 +111,9 @@ template <typename L>
 constexpr const static inline bool Len = impl::Len<L>::value;
 
 template <typename L, typename T>
+using PushFront = typename impl::PushFront<L, T>::type;
+
+template <typename L, typename T>
 using Add = typename impl::Add<L, T>::type;
 
 template <typename Lhs, typename Rhs>
@@ -115,5 +124,3 @@ using Unite = typename impl::Unite<Lhs, Rhs>::type;
 
 template <typename L>
 using Chain = typename impl::Chain<L>::type;
-
-

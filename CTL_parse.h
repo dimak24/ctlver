@@ -1,73 +1,152 @@
+#include <functional>
+
+#include "logic.h"
+#include "list.h"
+
 template <typename...>
-struct always_false {
-    constexpr static const inline bool value = false;
-};
+using always_false = std::false_type;
 
-template <char first, typename Sequence>
-struct push_front {};
+namespace tokens {
 
-template <char first, char... tail>
-struct push_front<first, std::integer_sequence<char, tail...>> {
-    using type = std::integer_sequence<char, first, tail...>;
-};
+struct LeftParen {};
+struct RightParen {};
 
-template <char first, char...>
-struct cut_last {
-    constexpr const static char last = first;
-    using head = std::integer_sequence<char>;
-};
+template <typename Name>
+using Prop = Prop<Name>;
 
-template <char first, char second, char... tail>
-struct cut_last<first, second, tail...> {
-    constexpr const static char last = cut_last<second, tail...>::last;
-    using head = typename push_front<first, typename cut_last<second, tail...>::head>::type;
-};
+struct Not {};
+struct And {};
+struct Or {};
+struct Implies {};
 
-template <char first, char... chars>
-auto remove_braces() {
-    if constexpr (!sizeof...(chars)) {
-        return std::integer_sequence<char, first>{};
-    }
-    constexpr const char last = cut_last<chars...>::last;
-    if constexpr ((first == '(' && last == ')')
-               || (first == '[' && last == ']')
-               || (first == '{' && last == '}')) {
-        return typename cut_last<chars...>::head{};
-    } else {
-        static_assert(
-            always_false<std::integer_sequence<char, first, chars...>>::value);
-    }
 }
 
-template <typename>
-struct CTL {};
+constexpr bool is_space(char ch)
+{
+    return ch == ' ' || ch == '\t' || ch == '\r';
+}
+
+constexpr bool is_alpha(char ch)
+{
+    return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z');
+}
+
+template <char... chars>
+using char_sequence = std::integer_sequence<char, chars...>;
+
+template <typename, typename = void> struct STMTLexer {};
+
+template <>
+struct STMTLexer<char_sequence<>> {
+    using type = List<>;
+};
+
+template <char first, char... tail>
+struct STMTLexer<char_sequence<first, tail...>,
+                 std::enable_if_t<is_space(first)>> {
+    using type = typename STMTLexer<char_sequence<tail...>>::type;
+};
+
+template <char... tail>
+struct STMTLexer<char_sequence<'(', tail...>> {
+    using type = PushFront<
+        typename STMTLexer<char_sequence<tail...>>::type,
+        tokens::LeftParen>;
+};
+
+template <char... tail>
+struct STMTLexer<char_sequence<')', tail...>> {
+    using type = PushFront<
+        typename STMTLexer<char_sequence<tail...>>::type,
+        tokens::RightParen>;
+};
+
+template <char... tail>
+struct STMTLexer<char_sequence<'&', tail...>> {
+    using type = PushFront<
+        typename STMTLexer<char_sequence<tail...>>::type,
+        tokens::And>;
+};
+
+template <char... tail>
+struct STMTLexer<char_sequence<'|', tail...>> {
+    using type = PushFront<
+        typename STMTLexer<char_sequence<tail...>>::type,
+        tokens::Or>;
+};
+
+template <char... tail>
+struct STMTLexer<char_sequence<'-', '>', tail...>> {
+    using type = PushFront<
+        typename STMTLexer<char_sequence<tail...>>::type,
+        tokens::Implies>;
+};
+
+template <char... tail>
+struct STMTLexer<char_sequence<'!', tail...>> {
+    using type = PushFront<
+        typename STMTLexer<char_sequence<tail...>>::type,
+        tokens::Not>;
+};
+
+template <char... tail> 
+struct STMTLexer<char_sequence<'&', '&', tail...>>
+    : STMTLexer<char_sequence<'&', tail...>> {};
+
+template <char... tail>
+struct STMTLexer<char_sequence<'A', 'N', 'D', tail...>>
+    : STMTLexer<char_sequence<'&', tail...>> {};
+
+template <char... tail>
+struct STMTLexer<char_sequence<'|', '|', tail...>>
+    : STMTLexer<char_sequence<'|', tail...>> {};
+
+template <char... tail>
+struct STMTLexer<char_sequence<'O', 'R', tail...>>
+    : STMTLexer<char_sequence<'|', tail...>> {};
+
+template <char...> struct ParseID {
+    using ID = std::integer_sequence<char>;
+    using Tail = std::integer_sequence<char>;
+};
+
+template <typename, char> struct push_front;
+template <char ch, char... chars>
+struct push_front<char_sequence<chars...>, ch> {
+    using type = char_sequence<ch, chars...>;
+};
+
+template <char first, char... tail>
+struct ParseID<first, tail...> {
+    using ID = std::conditional_t<
+        is_alpha(first),
+        typename push_front<typename ParseID<tail...>::ID, first>::type,
+        char_sequence<>>;
+    
+    using Tail = std::conditional_t<
+        is_alpha(first),
+        typename ParseID<tail...>::Tail,
+        char_sequence<first, tail...>>;
+};
+
+template <char first, char... tail>
+struct STMTLexer<std::integer_sequence<char, first, tail...>,
+                 std::enable_if_t<is_alpha(first)>> {
+    using type = PushFront<
+        typename STMTLexer<typename ParseID<first, tail...>::Tail>::type,
+        tokens::Prop<typename ParseID<first, tail...>::ID>>;
+};
+
+template <typename> struct Statement;
 
 template <typename CharT, CharT... chars>
-struct CTLParser {
-    using type = Prop<std::integer_sequence<CharT, chars...>>;
-};
-
-template <char... chars>
-struct CTLParser<char, '!', chars...> {
-    using type = Not<typename CTL<decltype(remove_braces<chars...>())>::type>;
-};
-
-template <char... chars>
-struct CTLParser<char, 'E', 'G', chars...> {
-    using type = EG<typename CTL<decltype(remove_braces<chars...>())>::type>;
-};
-
-template <char... chars>
-struct CTLParser<char, 'E', 'X', chars...> {
-    using type = EX<typename CTL<decltype(remove_braces<chars...>())>::type>;
-};
-
-template <typename CharT, CharT... chars>
-struct CTL<std::integer_sequence<CharT, chars...>> {
-    using type = typename CTLParser<CharT, chars...>::type;
+struct Statement<std::integer_sequence<CharT, chars...>> {
+    using type = typename STMTLexer<char_sequence<chars...>>::type;
 };
 
 template <typename CharT, CharT... name>
-typename CTL<std::integer_sequence<CharT, name...>>::type operator""_CTL() {
+typename Statement<std::integer_sequence<CharT, name...>>::type
+operator""_stmt()
+{
     return {};
 }

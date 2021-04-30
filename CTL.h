@@ -1,3 +1,5 @@
+#pragma once
+
 #include "logic.h"
 
 template <typename F> struct AX : detail::UnaryOp<F> {};

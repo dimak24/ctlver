@@ -5,6 +5,7 @@
 #include "dict.h"
 #include "graph.h"
 #include "kripke_model.h"
+#include "CTL_parse.h"
 #include "CTL_check.h"
 
 template <typename>
@@ -14,10 +15,10 @@ struct ShowType {
 
 int main() {
     {
-        using Start = decltype("Start"_prop);
-        using Error = decltype("Error"_prop);
-        using Close = decltype("Close"_prop);
-        using Heat = decltype("Heat"_prop);
+        using Start = decltype("start"_prop);
+        using Error = decltype("error"_prop);
+        using Close = decltype("close"_prop);
+        using Heat = decltype("heat"_prop);
 
         using model = KripkeModel<
             List<Node<0>, Node<1>, Node<2>, Node<3>, Node<4>, Node<5>, Node<6>>,
@@ -42,12 +43,8 @@ int main() {
                 KV<Node<4>, List<Start, Close, Error>>,
                 KV<Node<5>, List<Start, Close>>,
                 KV<Node<6>, List<Start, Close, Heat>>>>;
-        using formula = AG<Implies<Start, AF<Heat>>>;
 
-
-        //using formula = Not<EU<True, Or<Not<Start>, Not<EG<Not<Heat>>>>>>;
-        // ShowType<typename impl_::CTLNormalize<formula>::F> _;
-
+        using formula = decltype("AG(start -> AF(heat))"_CTL);
         // static_assert(std::is_same_v<List<>, typename CTLCheck<model, formula>::Satisfy>);
     }
 
@@ -70,12 +67,10 @@ int main() {
                 KV<Node<2>, List<p>>,
                 KV<Node<3>, List<q>>>>;
 
-        using formula = EG<And<Or<Not<p>, q>, EF<And<q, Not<p>>>>>;
-
+        using formula = decltype("EG((p -> q) && EF(q && !p))"_CTL);
         static_assert(
             std::is_same_v<
                 List<Node<0>, Node<1>, Node<3>>,
                 typename CTLCheck<model, formula>::Satisfy>);
     }
 }
-

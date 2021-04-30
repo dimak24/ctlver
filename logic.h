@@ -1,3 +1,5 @@
+#pragma once
+
 template <typename CharT, CharT... chars>
 struct get_name {
     constexpr static inline const char value[sizeof...(chars) + 1] = {

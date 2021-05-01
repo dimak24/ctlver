@@ -107,10 +107,10 @@ template <typename L, template <typename> class Selector>
 using Select = typename impl::Select<L, Selector>::type;
 
 template <typename L, typename T>
-constexpr static inline bool Contains = impl::Contains<L, T>::value;
+constexpr inline bool Contains = impl::Contains<L, T>::value;
 
 template <typename L>
-constexpr const static inline bool Len = impl::Len<L>::value;
+constexpr inline size_t Len = impl::Len<L>::value;
 
 template <typename L, typename T>
 using PushFront = typename impl::PushFront<L, T>::type;

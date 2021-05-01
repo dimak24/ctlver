@@ -45,7 +45,7 @@ int main() {
                 KV<Node<6>, List<Start, Close, Heat>>>>;
 
         using formula = decltype("AG(start -> AF(heat))"_CTL);
-        // static_assert(std::is_same_v<List<>, typename CTLCheck<model, formula>::Satisfy>);
+        static_assert(std::is_same_v<List<>, typename CTLCheck<model, formula>::Satisfy>);
     }
 
     {

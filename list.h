@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 template <typename...>
 struct List {
     using Head = void;
@@ -15,7 +17,6 @@ struct List<H, Ts...> {
 namespace impl {
 
 template <typename, typename> struct Contains;
-
 template <typename T, typename... Ts>
 struct Contains<List<Ts...>, T>
     : std::integral_constant<bool, (false || ... || std::is_same_v<Ts, T>)> {};
@@ -55,6 +56,12 @@ struct Select<List<Head, Tail...>, Selector> {
     >;
 };
 
+template <typename, template <typename> class> struct ForEach;
+template <template <typename> class Functor, typename... Ts>
+struct ForEach<List<Ts...>, Functor> {
+    using type = List<Functor<Ts>...>;
+};
+
 template <typename Lhs, typename Rhs>
 struct SetMinus {
     template <typename T>
@@ -65,7 +72,6 @@ struct SetMinus {
 };
 
 template <typename...> struct Unite;
-
 template <> struct Unite<> {
     using type = List<>;
 };
@@ -80,8 +86,8 @@ struct Unite<Head, List<>> : Unite<Head> {};
 
 template <typename Lhs, typename Head, typename... Tail>
 struct Unite<Lhs, List<Head, Tail...>> {
-    using U = typename Unite<Lhs, List<Tail...>>::type;
-    using type = typename Add<U, Head>::type;
+    using U_ = typename Unite<Lhs, List<Tail...>>::type;
+    using type = typename Add<U_, Head>::type;
 };
 
 template <typename L1, typename L2, typename... Tail>
@@ -98,7 +104,8 @@ template <typename> struct Reverse {
 
 template <typename Head, typename... Tail>
 struct Reverse<List<Head, Tail...>> {
-    using type = typename Add<typename Reverse<List<Tail...>>::type, Head>::type;
+    using type = typename Add<
+        typename Reverse<List<Tail...>>::type, Head>::type;
 };
 
 } // namespace impl
@@ -106,11 +113,14 @@ struct Reverse<List<Head, Tail...>> {
 template <typename L, template <typename> class Selector>
 using Select = typename impl::Select<L, Selector>::type;
 
+template <typename L, template <typename> class Functor>
+using ForEach = typename impl::ForEach<L, Functor>::type;
+
 template <typename L, typename T>
-constexpr inline bool Contains = impl::Contains<L, T>::value;
+inline constexpr bool Contains = impl::Contains<L, T>::value;
 
 template <typename L>
-constexpr inline size_t Len = impl::Len<L>::value;
+inline constexpr size_t Len = impl::Len<L>::value;
 
 template <typename L, typename T>
 using PushFront = typename impl::PushFront<L, T>::type;
@@ -126,3 +136,6 @@ using Unite = typename impl::Unite<Lhs, Rhs>::type;
 
 template <typename L>
 using Chain = typename impl::Chain<L>::type;
+
+template <typename L>
+using Reverse = typename impl::Reverse<L>::type;

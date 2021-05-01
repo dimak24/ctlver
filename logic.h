@@ -1,5 +1,7 @@
 #pragma once
 
+namespace detail {
+
 template <typename CharT, CharT... chars>
 struct get_name {
     constexpr static inline const char value[sizeof...(chars) + 1] = {
@@ -10,11 +12,13 @@ struct get_name {
     {}
 };
 
+}
+
 template <typename Name_>
 struct Prop {
     using Name = Name_;
     constexpr static inline const auto name =
-        static_cast<const char*>(decltype(get_name(Name{}))::value);
+        static_cast<const char*>(decltype(detail::get_name(Name{}))::value);
 };
 
 template <typename CharT, CharT... name>

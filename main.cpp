@@ -1,9 +1,5 @@
-#include <iostream>
 #include <functional>
 
-#include "list.h"
-#include "dict.h"
-#include "graph.h"
 #include "kripke_model.h"
 #include "CTL_parse.h"
 #include "CTL_check.h"

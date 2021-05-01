@@ -1,3 +1,11 @@
+#pragma once
+
+#include <functional>
+
+#include "dict.h"
+#include "list.h"
+
+
 template <int ID_>
 struct Node {
     constexpr const static int ID = ID_;
@@ -9,26 +17,29 @@ struct Edge {
     using Target = T;
 };
 
+namespace impl {
+template <typename E>
+using EdgeInverse = Edge<typename E::Target, typename E::Source>;
+}
+
 template <typename... Items>
 using AdjList = DefaultDict<List<>, Items...>;
 
 namespace impl {
 
-template <typename Edges>
-struct MakeAdjList {
+template <typename> struct MakeAdjList {
     using type = AdjList<>;
 };
 
 template <typename E, typename... Es>
 struct MakeAdjList<List<E, Es...>> {
     using SubList_ = typename MakeAdjList<List<Es...>>::type;
-    using Neighbors_ = ::Get<SubList_, typename E::Source>;
-    using Updated_ = ::Add<Neighbors_, typename E::Target>;
-    using type = ::Update<SubList_, typename E::Source, Updated_>;
+    using Neighbors_ = typename Get<SubList_, typename E::Source>::type;
+    using Updated_ = typename Add<Neighbors_, typename E::Target>::type;
+    using type = typename Update<SubList_, typename E::Source, Updated_>::type;
 };
 
-template <typename>
-struct MakeEdgeList {
+template <typename> struct MakeEdgeList {
     using type = List<>;
 };
 
@@ -63,21 +74,14 @@ struct Graph<Ns, AdjList<Items...>> {
     using Edges = typename impl::MakeEdgeList<Adj>::type;
 };
 
-template <typename>
-struct ReverseAll_;
-
-template <typename... Edges>
-struct ReverseAll_<List<Edges...>> {
-    using type = List<Edge<typename Edges::Target, typename Edges::Source>...>;
-};
-
 template <typename G>
-using Inverse = Graph<typename G::Nodes, typename ReverseAll_<typename G::Edges>::type>;
+using Inverse = Graph<
+    typename G::Nodes,
+    ForEach<typename G::Edges, impl::EdgeInverse>>;
 
 namespace impl {
 
-template <typename, typename, typename = List<>, typename = void>
-struct DFS;
+template <typename, typename, typename = List<>, typename = void> struct DFS;
 
 template <typename G, typename Visited>
 struct DFS<G, List<>, Visited> {
@@ -85,35 +89,42 @@ struct DFS<G, List<>, Visited> {
 };
 
 template <typename G, typename Start, typename Visited>
-struct DFS<G, List<Start>, Visited, std::enable_if_t<Contains<Visited, Start>::value>> {
+struct DFS<G, List<Start>, Visited,
+           std::enable_if_t<Contains<Visited, Start>::value>> {
     using VisitOrder = List<>;
 };
 
 template <typename G, typename Visited, typename Start>
-struct DFS<G, List<Start>, Visited, std::enable_if_t<!Contains<Visited, Start>::value>> {
+struct DFS<G, List<Start>, Visited,
+           std::enable_if_t<!Contains<Visited, Start>::value>> {
     using Next_ = typename Get<typename G::Adj, Start>::type;
     using Visited_ = typename Add<Visited, Start>::type;
-    using VisitOrder =
-        typename Add<typename DFS<G, Next_, Visited_>::VisitOrder, Start>::type;
+    using VisitOrder = typename Add<
+        typename DFS<G, Next_, Visited_>::VisitOrder, Start>::type;
 };
 
 template <typename G, typename Visited, typename Start, typename... Tail>
-struct DFS<G, List<Start, Tail...>, Visited, std::enable_if_t<(sizeof...(Tail) > 0)>> {
+struct DFS<G, List<Start, Tail...>, Visited,
+           std::enable_if_t<(sizeof...(Tail) > 0)>> {
     using Head_ = typename DFS<G, List<Start>, Visited>::VisitOrder;
     using Visited_ = typename Unite<Visited, Head_>::type;
-    using VisitOrder = typename Unite<Head_, typename DFS<G, List<Tail...>, Visited_>::VisitOrder>::type;
+    using VisitOrder = typename Unite<
+        Head_,
+        typename DFS<G, List<Tail...>, Visited_>::VisitOrder>::type;
 };
 
 template <typename, typename, typename = List<>, typename = void>
 struct SCCKosarajuCollect;
 
 template <typename G, typename Visited, typename Head>
-struct SCCKosarajuCollect<G, List<Head>, Visited, std::enable_if_t<Contains<Visited, Head>::value>> {
+struct SCCKosarajuCollect<G, List<Head>, Visited,
+                          std::enable_if_t<Contains<Visited, Head>::value>> {
     using type = List<>;
 };
 
 template <typename G, typename Visited, typename Head>
-struct SCCKosarajuCollect<G, List<Head>, Visited, std::enable_if_t<!Contains<Visited, Head>::value>> {
+struct SCCKosarajuCollect<G, List<Head>, Visited,
+                          std::enable_if_t<!Contains<Visited, Head>::value>> {
     using Next_ = typename Get<typename G::Adj, Head>::type;
     using Visited_ = typename Add<Visited, Head>::type;
     using SCC_ =
@@ -122,35 +133,54 @@ struct SCCKosarajuCollect<G, List<Head>, Visited, std::enable_if_t<!Contains<Vis
 };
 
 template <typename G, typename Visited, typename Head, typename... Tail>
-struct SCCKosarajuCollect<G, List<Head, Tail...>, Visited, std::enable_if_t<(sizeof...(Tail) > 0)>> {
+struct SCCKosarajuCollect<G, List<Head, Tail...>, Visited,
+                          std::enable_if_t<(sizeof...(Tail) > 0)>> {
     using Head_ = typename SCCKosarajuCollect<G, List<Head>, Visited>::type;
-    using Visited_ = typename Unite<Visited, typename Chain<Head_>::type>::type;
-    using type = typename Unite<Head_, typename SCCKosarajuCollect<G, List<Tail...>, Visited_>::type>::type;
+    using Visited_ = typename Unite<
+        Visited, typename Chain<Head_>::type>::type;
+    using type = typename Unite<
+        Head_,
+        typename SCCKosarajuCollect<
+            G, List<Tail...>, Visited_>::type>::type;
 };
 
-template <typename G, typename, typename = typename G::Nodes, typename = List<>, typename = void>
+template <typename G,
+          typename = typename G::Nodes, typename = List<>, typename = void>
 struct SCCKosaraju;
 
-template <typename G, typename GInv, typename Visited, typename Head>
-struct SCCKosaraju<G, GInv, List<Head>, Visited, std::enable_if_t<Contains<Visited, Head>::value>> {
+template <typename G, typename Visited, typename Head>
+struct SCCKosaraju<G, List<Head>, Visited,
+                   std::enable_if_t<Contains<Visited, Head>::value>> {
     using type = List<>;
 };
 
-template <typename G, typename GInv, typename Visited, typename Head>
-struct SCCKosaraju<G, GInv, List<Head>, Visited, std::enable_if_t<!Contains<Visited, Head>::value>> {
-    using Sorted_ = typename DFS<GInv, List<Head>, Visited>::VisitOrder;
-    using Visited_ = typename Unite<Visited, typename SetMinus<typename G::Nodes, Sorted_>::type>::type;
-    using type = typename SCCKosarajuCollect<G, typename Reverse<Sorted_>::type, Visited_>::type;
+template <typename G, typename Visited, typename Head>
+struct SCCKosaraju<G, List<Head>, Visited,
+                   std::enable_if_t<!Contains<Visited, Head>::value>> {
+    using Sorted_ = typename DFS<Inverse<G>, List<Head>, Visited>::VisitOrder;
+    using Visited_ = typename Unite<
+        Visited,
+        typename SetMinus<typename G::Nodes, Sorted_>::type>::type;
+    using type = typename SCCKosarajuCollect<
+        G, typename Reverse<Sorted_>::type, Visited_>::type;
 };
 
-template <typename G, typename GInv, typename Visited, typename Head, typename... Tail>
-struct SCCKosaraju<G, GInv, List<Head, Tail...>, Visited, std::enable_if_t<(sizeof...(Tail) > 0)>> {
-    using SCCsHead_ = typename SCCKosaraju<G, GInv, List<Head>, Visited>::type;
-    using Visited_ = typename Unite<Visited, typename Chain<SCCsHead_>::type>::type;
-    using type = typename Unite<SCCsHead_, typename SCCKosaraju<G, GInv, List<Tail...>, Visited_>::type>::type;
+template <typename G,
+          typename Visited,
+          typename Head, typename... Tail>
+struct SCCKosaraju<G,
+                   List<Head, Tail...>, Visited,
+                   std::enable_if_t<(sizeof...(Tail) > 0)>> {
+    using SCCsHead_ = typename SCCKosaraju<G, List<Head>, Visited>::type;
+    using Visited_ = typename Unite<
+        Visited, typename Chain<SCCsHead_>::type>::type;
+    using type = typename Unite<
+        SCCsHead_,
+        typename SCCKosaraju<
+            G,
+            List<Tail...>,
+            Visited_>::type>::type;
 };
-
-
 
 } // namespace impl
 
@@ -161,4 +191,4 @@ template <typename G, typename Nodes>
 using Reachable = typename impl::DFS<G, Nodes>::VisitOrder;
 
 template <typename G>
-using SCCKosaraju = typename impl::SCCKosaraju<G, Inverse<G>>::type;
+using SCCKosaraju = typename impl::SCCKosaraju<G>::type;

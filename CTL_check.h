@@ -10,8 +10,7 @@ struct CTLNormalize<Prop<Name>> {
     using F = Prop<Name>;
 };
 
-template <>
-struct CTLNormalize<True> {
+template <> struct CTLNormalize<True> {
     using F = True;
 };
 
@@ -36,8 +35,7 @@ struct CTLNormalize<
     using F = Allowed<typename CTLNormalize<F_>::F>;
 };
 
-template <>
-struct CTLNormalize<False> {
+template <> struct CTLNormalize<False> {
     using F = Not<True>;
 };
 
@@ -119,9 +117,7 @@ struct CTLCheck<Model, Not<F>> {
     >;
 };
 
-template <typename>
-struct Sources_;
-
+template <typename> struct Sources_;
 template <typename... Edges>
 struct Sources_<List<Edges...>> {
     using type = List<typename Edges::Source...>;
@@ -132,12 +128,10 @@ struct CTLCheck<Model, EX<F>> {
     using FSatisfy_ = typename CTLCheck<Model, F>::Satisfy;
 
     template <typename Edge>
-    struct Selector_ : std::integral_constant<
-        bool, Contains<FSatisfy_, typename Edge::Target>> {};
+    struct Selector_ : impl::Contains<FSatisfy_, typename Edge::Target> {};
 
-    using Satisfy = typename Sources_<Select<
-        typename impl::MakeEdgeList<
-            typename Model::Relation>::type, Selector_>>::type;
+    using Satisfy = typename Sources_<
+        Select<typename Model::Relation, Selector_>>::type;
 };
 
 template <typename Model, typename A, typename B>
@@ -147,14 +141,10 @@ struct CTLCheck<Model, EU<A, B>> {
     using SatisfyAB_ = Unite<SatisfyA_, SatisfyB_>;
 
     template <typename Edge>
-    struct Selector_
-        : std::integral_constant<bool,
-            Contains<SatisfyA_, typename Edge::Source>> {};
+    struct Selector_ : impl::Contains<SatisfyA_, typename Edge::Source> {};
 
-    using Graph_ = Graph<
-        SatisfyAB_,
-        typename ReverseAll_<
-            Select<typename Model::Relation, Selector_>>::type>;
+    using Graph_ = Inverse<Graph<
+        SatisfyAB_, Select<typename Model::Relation, Selector_>>>;
 
     using Satisfy = Reachable<Graph_, SatisfyB_>;
 };
@@ -169,20 +159,15 @@ struct CTLCheck<Model, EG<F>> {
             Contains<SatisfyF_, typename Edge::Source>
             && Contains<SatisfyF_, typename Edge::Target>> {};
 
-    using Graph_ = Graph<
-        SatisfyF_,
-        typename ReverseAll_<
-            Select<typename Model::Relation, Selector_>>::type>;
+    using Graph_ = Inverse<Graph<
+        SatisfyF_, Select<typename Model::Relation, Selector_>>>;
 
     template <typename SCC>
     struct SCCSelector_
         : std::integral_constant<bool,
             (Len<SCC> > 1)
-            || Contains<
-                Get<
-                    typename impl::MakeAdjList<typename Model::Relation>::type,
-                    typename SCC::Head
-                >, typename SCC::Head>> {};
+            || Contains<Get<typename Model::Adj, typename SCC::Head>,
+                        typename SCC::Head>> {};
 
     using SCCs_ = Select<SCCKosaraju<Graph_>, SCCSelector_>;
     using Satisfy = Reachable<Graph_, Chain<SCCs_>>;
@@ -191,4 +176,5 @@ struct CTLCheck<Model, EG<F>> {
 } // namespace impl_
 
 template <typename Model, typename Formula>
-using CTLCheck = impl_::CTLCheck<Model, typename impl_::CTLNormalize<Formula>::F>;
+using CTLCheck = impl_::CTLCheck<
+    Model, typename impl_::CTLNormalize<Formula>::F>;

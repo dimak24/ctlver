@@ -48,6 +48,11 @@ constexpr bool is_alpha(char ch)
     return 'a' <= ch && ch <= 'z';
 }
 
+constexpr bool is_num(char ch)
+{
+    return '0' <= ch && ch <= '9';
+}
+
 template <typename, typename = void> struct CTLLexer {};
 
 template <>
@@ -166,7 +171,7 @@ struct CTLLexer<char_sequence<'U', tail...>> {
         tokens::U>;
 };
 
-template <char... tail> 
+template <char... tail>
 struct CTLLexer<char_sequence<'&', '&', tail...>>
     : CTLLexer<char_sequence<'&', tail...>> {};
 
@@ -196,19 +201,19 @@ struct push_front<char_sequence<chars...>, ch> {
 template <char first, char... tail>
 struct ParseID<first, tail...> {
     using ID = std::conditional_t<
-        is_alpha(first),
+        is_alpha(first) || is_num(first),
         typename push_front<typename ParseID<tail...>::ID, first>::type,
         char_sequence<>>;
-    
+
     using Tail = std::conditional_t<
-        is_alpha(first),
+        is_alpha(first) || is_num(first),
         typename ParseID<tail...>::Tail,
         char_sequence<first, tail...>>;
 };
 
 template <char first, char... tail>
 struct CTLLexer<std::integer_sequence<char, first, tail...>,
-                 std::enable_if_t<is_alpha(first)>> {
+                 std::enable_if_t<is_alpha(first) || is_num(first)>> {
     using type = PushFront<
         typename CTLLexer<typename ParseID<first, tail...>::Tail>::type,
         tokens::Prop<typename ParseID<first, tail...>::ID>>;
